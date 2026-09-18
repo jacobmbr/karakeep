@@ -161,6 +161,16 @@ const allEnv = z.object({
   CRAWLER_DOMAIN_RATE_LIMIT_WINDOW_MS: z.coerce.number().min(1).optional(),
   CRAWLER_DOMAIN_RATE_LIMIT_MAX_REQUESTS: z.coerce.number().min(1).optional(),
   CRAWLER_PREFLIGHT_USER_AGENT: z.string().optional(),
+  CRAWLER_RESOLVE_SHORTENED_URLS: stringBool("true"),
+  CRAWLER_EXTRA_URL_SHORTENERS: z
+    .string()
+    .prefault("")
+    .transform((val) =>
+      val
+        .split(",")
+        .map((p) => p.trim())
+        .filter((p) => p),
+    ),
   LOG_LEVEL: z.string().default("debug"),
   NO_COLOR: stringBool("false"),
   DEMO_MODE: stringBool("false"),
@@ -436,6 +446,8 @@ const serverConfigSchema = allEnv.transform((val, ctx) => {
             }
           : null,
       preflightUserAgent: val.CRAWLER_PREFLIGHT_USER_AGENT,
+      resolveShortenedUrls: val.CRAWLER_RESOLVE_SHORTENED_URLS,
+      extraUrlShorteners: val.CRAWLER_EXTRA_URL_SHORTENERS,
     },
     ocr: {
       langs: val.OCR_LANGS,

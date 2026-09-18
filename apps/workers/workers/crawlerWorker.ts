@@ -53,6 +53,10 @@ import {
   writeProbeMetadata,
 } from "./crawler/probe";
 import type { UrlProbeResult } from "./crawler/probe";
+import {
+  isShortenedUrl,
+  resolveShortenedUrl,
+} from "./crawler/resolveShortenedUrl";
 import { redactUrlCredentials, truncateUrl } from "./crawler/utils";
 
 // Re-exported for the adhoc crawl CLI (scripts/crawlAdhoc.ts).
@@ -350,7 +354,7 @@ async function runCrawler(
     "bookmark.id": bookmarkId,
   });
   const {
-    url,
+    url: originalUrl,
     userId,
     createdAt,
     crawledAt,
@@ -363,10 +367,34 @@ async function runCrawler(
     probeMetadataAt,
   } = await getBookmarkDetails(bookmarkId);
 
-  await checkDomainRateLimit(url, jobId);
+  await checkDomainRateLimit(originalUrl, jobId);
 
   // Select proxy URLs once for the entire run so all requests use the same proxy.
   const runProxy = selectRunProxies();
+
+  // A shortener URL carries no information beyond its destination, so resolve
+  // it up front and persist the result. Everything downstream — the probe, the
+  // crawl, tagging, the stored bookmark — then works against the real URL.
+  let url = originalUrl;
+  if (isShortenedUrl(originalUrl)) {
+    url = await resolveShortenedUrl(
+      originalUrl,
+      jobId,
+      job.abortSignal,
+      runProxy,
+    );
+    if (url !== originalUrl) {
+      await db
+        .update(bookmarkLinks)
+        .set({ url })
+        .where(eq(bookmarkLinks.id, bookmarkId));
+      logger.info(
+        `[Crawler][${jobId}] Resolved shortened URL "${truncateUrl(originalUrl)}" to "${truncateUrl(url)}"`,
+      );
+      // The check above only covered the shortener's domain.
+      await checkDomainRateLimit(url, jobId);
+    }
+  }
 
   addLogFields<"crawlerWorker.run">({
     "user.id": userId,
