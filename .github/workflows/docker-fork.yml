@@ -26,6 +26,14 @@ jobs:
         with:
           persist-credentials: false
 
+      # Identifies which commit an image came from, in the version string as
+      # well as the tag. Keeps the "nightly-" prefix because the web UI treats
+      # any version without it as a published release and goes looking for
+      # release notes that do not exist.
+      - name: Resolve build version
+        id: version
+        run: echo "value=nightly-$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
@@ -40,7 +48,7 @@ jobs:
         uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: .
-          build-args: SERVER_VERSION=nightly
+          build-args: SERVER_VERSION=${{ steps.version.outputs.value }}
           file: docker/Dockerfile
           target: aio
           platforms: linux/amd64
