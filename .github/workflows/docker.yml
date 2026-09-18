@@ -9,6 +9,9 @@ on:
 
 jobs:
   build:
+    # Publishes to the karakeep-app/hoarder-app orgs with a secret only this
+    # repo holds, so it can never succeed on a fork. Skip rather than fail.
+    if: github.repository_owner == 'karakeep-app'
     strategy:
       fail-fast: false
       matrix:
@@ -111,6 +114,7 @@ jobs:
           cache-to: type=registry,mode=max,ref=ghcr.io/karakeep-app/karakeep-build-cache:${{ matrix.target }}-${{ matrix.suffix }}
 
   manifest:
+    if: github.repository_owner == 'karakeep-app'
     needs: build
     runs-on: ubuntu-latest
     permissions:
