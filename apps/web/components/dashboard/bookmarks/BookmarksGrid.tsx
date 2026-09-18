@@ -40,10 +40,14 @@ function StyledBookmarkCard({
   return (
     <Slot
       className={cn(
-        "border border-border bg-card transition-colors hover:bg-card-hover",
-        // Compact spends its vertical budget on rows rather than gutters; the
-        // card border is enough separation at this density.
-        layout === "compact" ? "mb-1" : "mb-4",
+        "transition-colors hover:bg-card-hover",
+        // Compact reads as one continuous list rather than a stack of cards:
+        // a hairline between rows instead of a box around each, and no gutter.
+        // Boxing every row at this density adds three edges per item that
+        // carry no information.
+        layout === "compact"
+          ? "border-b border-border/50 last:border-b-0"
+          : "mb-4 border border-border bg-card",
         className,
       )}
       {...props}
@@ -236,7 +240,7 @@ export default function BookmarksGrid({
 
   const children = [
     showEditorCard && (
-      <StyledBookmarkCard key={"editor"}>
+      <StyledBookmarkCard key={"editor"} className="mb-2 border-b-0">
         <EditorCard />
       </StyledBookmarkCard>
     ),

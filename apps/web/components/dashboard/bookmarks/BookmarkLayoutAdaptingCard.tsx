@@ -436,74 +436,111 @@ function CompactView({
   className,
   bookmarkIndex,
 }: Props) {
-  const { showTitle } = useBookmarkDisplaySettings();
-  const isBulkEditEnabled = useBulkActionsStore(
-    (state) => state.isBulkEditEnabled,
-  );
+  const { showTitle, showTags } = useBookmarkDisplaySettings();
+
+  // Tags are a primary way people re-find something they filed, so the dense
+  // row surfaces them. Three keeps the track from crowding the title; the rest
+  // are counted.
+  const visibleTags = showTags ? bookmark.tags.slice(0, 3) : [];
+  const hiddenTagCount = showTags
+    ? bookmark.tags.length - visibleTags.length
+    : 0;
+
   return (
+    // One shared column template across every row, so host and date form real
+    // vertical tracks you can scan down instead of landing at a different
+    // offset on each row. That alignment is what replaces the "a • b • c"
+    // separators the old row leaned on.
+    // Narrow viewports drop the tags and host cells entirely (display:none
+    // removes them from the grid), leaving the four base tracks.
     <div
       className={cn(
-        "group relative flex flex-col overflow-hidden rounded-lg",
+        "group relative grid h-[34px] items-center gap-x-3 px-3",
+        "grid-cols-[1rem_minmax(0,1fr)_0.75rem_5.5rem_4rem]",
+        "md:grid-cols-[1rem_minmax(0,1fr)_auto_9.5rem_0.75rem_5.5rem_4rem]",
         className,
-        "max-h-96",
       )}
       data-bookmark-index={bookmarkIndex}
     >
       <BulkEditSelectionOverlay bookmark={bookmark} />
       <OwnerIndicator bookmark={bookmark} />
-      <div className="flex h-full justify-between gap-2 overflow-hidden px-2 py-0.5">
-        <div className="flex min-w-0 items-center gap-1.5">
-          {bookmark.content.type === BookmarkTypes.LINK &&
-            bookmark.content.favicon && (
-              <Image
-                src={bookmark.content.favicon}
-                alt="favicon"
-                width={4}
-                unoptimized
-                height={4}
-                className="size-4 shrink-0"
-              />
-            )}
-          {bookmark.content.type === BookmarkTypes.TEXT && (
-            <NotebookPen className="size-4 shrink-0" />
-          )}
-          {bookmark.content.type === BookmarkTypes.ASSET && (
-            <ImageIcon className="size-4 shrink-0" />
-          )}
-          {/*
-            When the row runs out of width the host should give way before the
-            title does. Both need min-w-0 to be allowed to truncate at all, and
-            the title keeps an auto basis (rather than flex-1's basis-0) so it
-            is not the first thing the browser shrinks.
-          */}
-          {showTitle && (
-            <div className="line-clamp-1 min-w-0 shrink grow basis-auto overflow-hidden text-ellipsis break-words text-sm">
-              {title ?? "Untitled"}
-            </div>
-          )}
-          {footer && (
-            <p className="flex min-w-[4rem] shrink-[3] gap-1.5 text-sm text-gray-500">
-              •{footer}
-            </p>
-          )}
-          <p className="shrink-0 text-sm text-gray-500">•</p>
+
+      {bookmark.content.type === BookmarkTypes.LINK &&
+        bookmark.content.favicon && (
+          <Image
+            src={bookmark.content.favicon}
+            alt=""
+            width={4}
+            unoptimized
+            height={4}
+            className="size-4 rounded-sm"
+          />
+        )}
+      {bookmark.content.type === BookmarkTypes.TEXT && (
+        <NotebookPen className="size-4 text-muted-foreground" />
+      )}
+      {bookmark.content.type === BookmarkTypes.ASSET && (
+        <ImageIcon className="size-4 text-muted-foreground" />
+      )}
+      {bookmark.content.type === BookmarkTypes.UNKNOWN && <span />}
+
+      {showTitle ? (
+        <span className="truncate text-[13px] font-medium tracking-[-0.006em] text-foreground">
+          {title ?? "Untitled"}
+        </span>
+      ) : (
+        <span />
+      )}
+
+      <div className="hidden min-w-0 items-center justify-end gap-2 md:flex">
+        {visibleTags.map((tag) => (
           <Link
-            href={`/dashboard/preview/${bookmark.id}`}
-            suppressHydrationWarning
-            className="shrink-0 gap-1.5 text-sm text-gray-500"
+            key={tag.id}
+            href={`/dashboard/tags/${tag.id}`}
+            className="truncate text-[11px] text-muted-foreground/80 hover:text-foreground"
           >
-            <BookmarkFormattedCreatedAt createdAt={bookmark.createdAt} />
+            {tag.name}
           </Link>
-        </div>
-        <div className="relative z-[60] flex shrink-0 items-center">
+        ))}
+        {hiddenTagCount > 0 && (
+          <span className="text-[11px] tabular-nums text-muted-foreground/60">
+            +{hiddenTagCount}
+          </span>
+        )}
+      </div>
+
+      <div className="hidden truncate text-[12px] text-muted-foreground md:block">
+        {footer}
+      </div>
+
+      {/* Favourited is state, not an action, so it sits with the metadata in
+          its own track rather than inside the action cluster, where it used to
+          shove the buttons across the date column. */}
+      <span className="flex justify-center">
+        {bookmark.favourited && <FavouritedActionIcon favourited size={12} />}
+      </span>
+
+      {/* Dates get Inter tabular figures so the numerals line up down the
+          column; proportional digits would make the track ragged. */}
+      <Link
+        href={`/dashboard/preview/${bookmark.id}`}
+        suppressHydrationWarning
+        className="whitespace-nowrap text-right text-[12px] tabular-nums text-muted-foreground/90 transition-opacity group-hover:opacity-0"
+      >
+        <BookmarkFormattedCreatedAt createdAt={bookmark.createdAt} />
+      </Link>
+
+      {/* At rest only two buttons show and they fit the track. On hover three
+          more join them and the cluster is wider than the track, so it is
+          anchored to the right edge and the date fades out to make room —
+          metadata yields to actions rather than being half-covered by them. */}
+      <div className="relative z-[60] flex items-center justify-end">
+        <div className="absolute right-0 flex items-center">
           <HoverActionBar bookmark={bookmark} inline />
           <BookmarkActionBar
             bookmark={bookmark}
             compact
-            favouritedClassName={cn(
-              "group-hover:hidden",
-              isBulkEditEnabled && "hidden",
-            )}
+            favouritedClassName="hidden"
           />
         </div>
       </div>
