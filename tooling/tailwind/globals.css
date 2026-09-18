@@ -9,6 +9,10 @@
 
     --card: 0 0% 100%;
     --card-foreground: 222.2 84% 4.9%;
+    /* Hover state for cards. Deliberately not --accent/--muted: in dark those
+       collapse onto the same value as --border and the page container, so a
+       hovered card would take the exact colour of what sits behind it. */
+    --card-hover: 210 40% 96.1%;
 
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
@@ -41,6 +45,9 @@
 
     --card: 222.2 84% 4.9%;
     --card-foreground: 210 40% 98%;
+    /* Sits between --card (4.9%) and the container/border (17.5%) so a hovered
+       card reads as lifted without merging into either. */
+    --card-hover: 217.2 32.6% 11%;
 
     --popover: 222.2 84% 4.9%;
     --popover-foreground: 210 40% 98%;
