@@ -73,3 +73,9 @@ auth_failures.log
 .codex
 .claude/worktrees
 jean.json
+
+# nix dev shell (fork-local)
+/.nix/
+/.direnv/
+/result
+/result-*
