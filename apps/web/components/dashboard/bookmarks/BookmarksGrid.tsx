@@ -36,10 +36,14 @@ function StyledBookmarkCard({
   children: React.ReactNode;
   className?: string;
 } & React.HTMLAttributes<HTMLElement>) {
+  const layout = useBookmarkLayout();
   return (
     <Slot
       className={cn(
-        "mb-4 border border-border bg-card hover:shadow-lg hover:transition-shadow",
+        "border border-border bg-card hover:shadow-lg hover:transition-shadow",
+        // Compact spends its vertical budget on rows rather than gutters; the
+        // card border is enough separation at this density.
+        layout === "compact" ? "mb-1" : "mb-4",
         className,
       )}
       {...props}

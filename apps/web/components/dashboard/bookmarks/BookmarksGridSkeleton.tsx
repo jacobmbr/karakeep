@@ -28,7 +28,28 @@ function getBreakpointConfig(userColumns: number) {
   return breakpointColumnsObj;
 }
 
-function BookmarkCardSkeleton({ height }: { height: string }) {
+function BookmarkCardSkeleton({
+  height,
+  compact = false,
+}: {
+  height: string;
+  compact?: boolean;
+}) {
+  // A compact row is a single line, so the three stacked bars below would
+  // flash a placeholder several times its height before settling. Mirror the
+  // real row instead: px-2 py-0.5 around 32px of content (see CompactView).
+  if (compact) {
+    return (
+      <div className="mb-1 border border-border bg-card px-2 py-0.5">
+        <div className="flex h-8 items-center gap-1.5">
+          <Skeleton className="size-4 shrink-0 rounded-full" />
+          <Skeleton className="h-4 w-1/3" />
+          <Skeleton className="h-3 w-24 shrink-0" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mb-4 border border-border bg-card p-4">
       <div className="space-y-3">
@@ -58,6 +79,7 @@ export default function BookmarksGridSkeleton({
   const children = Array.from({ length: count }, (_, i) => (
     <BookmarkCardSkeleton
       key={i}
+      compact={layout === "compact"}
       height={bookmarkLayoutSwitch(layout, {
         masonry: "h-48",
         grid: "h-48",

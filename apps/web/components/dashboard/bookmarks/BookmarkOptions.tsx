@@ -86,7 +86,13 @@ function isSubsectionItem(item: ActionItemType): item is SubsectionItem {
   return "items" in item;
 }
 
-export default function BookmarkOptions({ bookmark }: { bookmark: ZBookmark }) {
+export default function BookmarkOptions({
+  bookmark,
+  compact = false,
+}: {
+  bookmark: ZBookmark;
+  compact?: boolean;
+}) {
   const { t } = useTranslation();
   const linkId = bookmark.id;
   const { data: session } = useSession();
@@ -497,6 +503,7 @@ export default function BookmarkOptions({ bookmark }: { bookmark: ZBookmark }) {
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
+            size={compact ? "icon-sm" : "default"}
             className="px-1 focus-visible:ring-0 focus-visible:ring-offset-0"
           >
             <MoreHorizontal />

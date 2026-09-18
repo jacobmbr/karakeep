@@ -451,38 +451,46 @@ function CompactView({
     >
       <BulkEditSelectionOverlay bookmark={bookmark} />
       <OwnerIndicator bookmark={bookmark} />
-      <div className="flex h-full justify-between gap-2 overflow-hidden p-2">
-        <div className="flex items-center gap-2">
+      <div className="flex h-full justify-between gap-2 overflow-hidden px-2 py-0.5">
+        <div className="flex min-w-0 items-center gap-1.5">
           {bookmark.content.type === BookmarkTypes.LINK &&
             bookmark.content.favicon && (
               <Image
                 src={bookmark.content.favicon}
                 alt="favicon"
-                width={5}
+                width={4}
                 unoptimized
-                height={5}
-                className="size-5"
+                height={4}
+                className="size-4 shrink-0"
               />
             )}
           {bookmark.content.type === BookmarkTypes.TEXT && (
-            <NotebookPen className="size-5" />
+            <NotebookPen className="size-4 shrink-0" />
           )}
           {bookmark.content.type === BookmarkTypes.ASSET && (
-            <ImageIcon className="size-5" />
+            <ImageIcon className="size-4 shrink-0" />
           )}
+          {/*
+            When the row runs out of width the host should give way before the
+            title does. Both need min-w-0 to be allowed to truncate at all, and
+            the title keeps an auto basis (rather than flex-1's basis-0) so it
+            is not the first thing the browser shrinks.
+          */}
           {showTitle && (
-            <div className="shrink-1 text-md line-clamp-1 overflow-hidden text-ellipsis break-words">
+            <div className="line-clamp-1 min-w-0 shrink grow basis-auto overflow-hidden text-ellipsis break-words text-sm">
               {title ?? "Untitled"}
             </div>
           )}
           {footer && (
-            <p className="flex shrink-0 gap-2 text-gray-500">•{footer}</p>
+            <p className="flex min-w-[4rem] shrink-[3] gap-1.5 text-sm text-gray-500">
+              •{footer}
+            </p>
           )}
-          <p className="text-gray-500">•</p>
+          <p className="shrink-0 text-sm text-gray-500">•</p>
           <Link
             href={`/dashboard/preview/${bookmark.id}`}
             suppressHydrationWarning
-            className="shrink-0 gap-2 text-gray-500"
+            className="shrink-0 gap-1.5 text-sm text-gray-500"
           >
             <BookmarkFormattedCreatedAt createdAt={bookmark.createdAt} />
           </Link>
@@ -491,6 +499,7 @@ function CompactView({
           <HoverActionBar bookmark={bookmark} inline />
           <BookmarkActionBar
             bookmark={bookmark}
+            compact
             favouritedClassName={cn(
               "group-hover:hidden",
               isBulkEditEnabled && "hidden",
