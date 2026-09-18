@@ -39,6 +39,11 @@ export default function EditorCard({ className }: { className?: string }) {
 
   const demoMode = !!useClientConfig().demoMode;
   const bookmarkLayout = useBookmarkLayout();
+  // Compact and list run the editor full width, where a single line comfortably
+  // fits the placeholder alongside the shortcut chip and Save. Grid and masonry
+  // put it in a column roughly a third that wide, so it stays a stacked card
+  // there rather than clipping the placeholder.
+  const singleLine = bookmarkLayout === "compact" || bookmarkLayout === "list";
   const formSchema = z.object({
     text: z.string(),
   });
@@ -63,9 +68,10 @@ export default function EditorCard({ className }: { className?: string }) {
         });
       }
       form.reset();
-      // if the list layout is used, we reset the size of the editor card to the original size after submitting
-      if (bookmarkLayout === "list" && inputRef?.current?.style) {
-        inputRef.current.style.height = "auto";
+      // Drop the inline height that onInput grew, so the editor collapses back
+      // to its resting size.
+      if (singleLine && inputRef.current?.style) {
+        inputRef.current.style.height = "";
       }
     },
     onError: (e) => {
@@ -97,18 +103,14 @@ export default function EditorCard({ className }: { className?: string }) {
   }
 
   const onInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
-    // Expand the textarea to a max of half the screen size in the list layout only
-    if (bookmarkLayout === "list") {
-      const target = e.target as HTMLTextAreaElement;
-      const maxHeight = window.innerHeight * 0.5;
-      target.style.height = "auto";
-
-      if (target.scrollHeight <= maxHeight) {
-        target.style.height = `${target.scrollHeight}px`;
-      } else {
-        target.style.height = `${maxHeight}px`;
-      }
-    }
+    // Only the single-line layouts need this: they rest at one row, so without
+    // growing, a multi-line note would be typed into a one-line slot. Grid and
+    // masonry give the textarea a fixed card height already.
+    if (!singleLine) return;
+    const target = e.target as HTMLTextAreaElement;
+    const maxHeight = window.innerHeight * 0.5;
+    target.style.height = "auto";
+    target.style.height = `${Math.min(target.scrollHeight, maxHeight)}px`;
   };
 
   const onSubmit: SubmitHandler<z.infer<typeof formSchema>> = (data) => {
@@ -190,24 +192,33 @@ export default function EditorCard({ className }: { className?: string }) {
       <form
         className={cn(
           className,
-          "relative flex flex-col gap-2 rounded-xl bg-card p-4",
-          cardHeight,
+          "relative rounded-xl bg-card",
+          singleLine
+            ? "flex items-end gap-2 px-2 py-1"
+            : cn("flex flex-col gap-2 p-4", cardHeight),
         )}
         onSubmit={form.handleSubmit(onSubmit, onError)}
       >
-        <div className="flex justify-between">
-          <p className="text-sm">{t("editor.new_item")}</p>
-          <Kbd>⌘ + E</Kbd>
-        </div>
-        <Separator />
-        <FormItem className="flex-1">
+        {!singleLine && (
+          <>
+            <div className="flex justify-between">
+              <p className="text-sm">{t("editor.new_item")}</p>
+              <Kbd>⌘ + E</Kbd>
+            </div>
+            <Separator />
+          </>
+        )}
+        <FormItem className={cn("flex-1", singleLine && "min-w-0 space-y-0")}>
           <FormControl>
             <Textarea
               ref={inputRef}
+              rows={singleLine ? 1 : undefined}
               disabled={isPending}
               className={cn(
-                "text-md h-full w-full border-none p-0 font-light focus-visible:ring-0",
-                { "resize-none": bookmarkLayout !== "list" },
+                "w-full resize-none border-none focus-visible:ring-0",
+                singleLine
+                  ? "min-h-0 overflow-y-auto bg-transparent px-1 py-2 text-sm font-light leading-5 focus-visible:ring-offset-0"
+                  : "text-md h-full p-0 font-light",
               )}
               placeholder={t("editor.placeholder_v2")}
               onKeyDown={(e) => {
@@ -235,13 +246,28 @@ export default function EditorCard({ className }: { className?: string }) {
             />
           </FormControl>
         </FormItem>
+        {singleLine && <Kbd className="mb-2 shrink-0">⌘ + E</Kbd>}
+        {/*
+          On a single line the label stays fixed rather than growing to
+          "Save (⌘ + Enter)" once dirty — that swap would shove the input
+          sideways the moment you started typing. The shortcut moves to the
+          tooltip there; the stacked layout has the room, so it keeps the
+          original inline hint.
+        */}
         <ActionButton
+          className={cn(singleLine && "shrink-0")}
+          size={singleLine ? "sm" : "default"}
           disabled={!form.formState.dirtyFields.text}
           loading={isPending}
           type="submit"
           variant="secondary"
+          title={
+            demoMode
+              ? t("editor.disabled_submissions")
+              : `${t("actions.save")} (${OS === "macos" ? "⌘" : "Ctrl"} + Enter)`
+          }
         >
-          {form.formState.dirtyFields.text
+          {!singleLine && form.formState.dirtyFields.text
             ? demoMode
               ? t("editor.disabled_submissions")
               : `${t("actions.save")} (${OS === "macos" ? "⌘" : "Ctrl"} + Enter)`
