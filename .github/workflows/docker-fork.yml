@@ -1,0 +1,50 @@
+# Fork-local image build.
+#
+# The upstream workflow (docker.yml) publishes to the karakeep-app and
+# hoarder-app orgs, which a fork has no write access to. This one builds the
+# single all-in-one image into this fork's own namespace using the built-in
+# GITHUB_TOKEN, so no PAT needs configuring.
+name: Build and Push Docker (fork)
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/karakeep
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Login to Github Registry
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build karakeep-aio
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+        with:
+          context: .
+          build-args: SERVER_VERSION=nightly
+          file: docker/Dockerfile
+          target: aio
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.IMAGE }}:latest,${{ env.IMAGE }}:${{ github.sha }}
+          cache-from: type=registry,ref=${{ env.IMAGE }}-build-cache:aio-amd64
+          cache-to: type=registry,mode=max,ref=${{ env.IMAGE }}-build-cache:aio-amd64
