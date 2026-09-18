@@ -40,7 +40,7 @@ function StyledBookmarkCard({
   return (
     <Slot
       className={cn(
-        "border border-border bg-card hover:shadow-lg hover:transition-shadow",
+        "border border-border bg-card transition-colors hover:bg-accent",
         // Compact spends its vertical budget on rows rather than gutters; the
         // card border is enough separation at this density.
         layout === "compact" ? "mb-1" : "mb-4",
