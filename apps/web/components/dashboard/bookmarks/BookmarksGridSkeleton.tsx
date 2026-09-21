@@ -35,16 +35,20 @@ function BookmarkCardSkeleton({
   height: string;
   compact?: boolean;
 }) {
-  // A compact row is a single line, so the three stacked bars below would
-  // flash a placeholder several times its height before settling. Mirror the
-  // real row instead: px-2 py-0.5 around 32px of content (see CompactView).
+  // A compact row is a title line over a metadata line, so the three stacked
+  // bars below would flash a placeholder well over its height before settling.
+  // Mirror the real row instead: icon and title on the first line, host on the
+  // second, date to the right (see CompactView).
   if (compact) {
     return (
-      <div className="mb-1 border border-border bg-card px-2 py-0.5">
-        <div className="flex h-8 items-center gap-1.5">
-          <Skeleton className="size-4 shrink-0 rounded-full" />
-          <Skeleton className="h-4 w-1/3" />
-          <Skeleton className="h-3 w-24 shrink-0" />
+      <div className="mb-1 border border-border bg-card px-3 py-2">
+        <div className="flex min-h-[34px] items-start gap-3">
+          <Skeleton className="size-4 shrink-0 rounded-sm" />
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <Skeleton className="h-3 w-2/3" />
+            <Skeleton className="h-3 w-2/5" />
+          </div>
+          <Skeleton className="h-3 w-16 shrink-0" />
         </div>
       </div>
     );
