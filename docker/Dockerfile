@@ -81,8 +81,14 @@ FROM node:24.18.1-slim AS aio_builder
 LABEL org.opencontainers.image.source="https://github.com/karakeep-app/karakeep"
 WORKDIR /app
 
-ARG SERVER_VERSION=nightly
-ENV SERVER_VERSION=${SERVER_VERSION}
+# SERVER_VERSION is declared at the *end* of this stage rather than here.
+# BuildKit folds every in-scope ARG into the cache key of every RUN beneath it
+# -- the published image records its layers as
+#   RUN |3 SERVER_VERSION=0.33.2 S6_OVERLAY_VERSION=... /bin/sh -c apt-get ...
+# -- and the value changes on every build. Declaring it up here therefore
+# rebuilt the runtime apt layer and the yt-dlp download on every commit, and
+# handed them a new digest so every pull re-downloaded them. It is only ever
+# read at runtime (packages/shared/config.ts), never during the build.
 
 ENV PORT 3000
 ENV HOSTNAME "0.0.0.0"
@@ -94,24 +100,31 @@ EXPOSE 3000
 ARG S6_OVERLAY_VERSION=3.2.1.0
 ARG TARGETARCH
 
-# Install wget and xz-utils needed for s6-overlay
+# wget is also what HEALTHCHECK uses, so it stays; xz-utils is only needed to
+# unpack s6 and is dropped again below.
+#
+# Fetching and unpacking both tarballs in one layer matters: an `ADD <url>`
+# writes the archive into its own layer, so deleting it in a later RUN leaves
+# it in the image anyway. Previously the noarch tarball shipped in the image
+# for that reason, while the arch-specific one was correctly cleaned up.
 RUN apt-get update \
     && apt-get install --no-install-recommends -y \
         ca-certificates \
         wget \
         xz-utils \
-    && rm -rf /var/lib/apt/lists/*
-
-ADD https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz /tmp
-RUN tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz \
     && case ${TARGETARCH} in \
             "amd64")  S6_ARCH=x86_64   ;; \
             "arm64")  S6_ARCH=aarch64  ;; \
+            *) echo "Unsupported arch: ${TARGETARCH}" && exit 1 ;; \
         esac \
-    && echo https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${S6_ARCH}.tar.xz -O /tmp/s6-overlay-${S6_ARCH}.tar.xz \
-    && wget https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${S6_ARCH}.tar.xz -O /tmp/s6-overlay-${S6_ARCH}.tar.xz \
-    && tar -C / -Jxpf /tmp/s6-overlay-${S6_ARCH}.tar.xz \
-    && rm -f /tmp/s6-overlay-${S6_ARCH}.tar.xz
+    && S6_URL=https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION} \
+    && wget -q ${S6_URL}/s6-overlay-noarch.tar.xz -O /tmp/s6-overlay-noarch.tar.xz \
+    && wget -q ${S6_URL}/s6-overlay-${S6_ARCH}.tar.xz -O /tmp/s6-overlay-arch.tar.xz \
+    && tar -C / -Jxpf /tmp/s6-overlay-noarch.tar.xz \
+    && tar -C / -Jxpf /tmp/s6-overlay-arch.tar.xz \
+    && rm -f /tmp/s6-overlay-noarch.tar.xz /tmp/s6-overlay-arch.tar.xz \
+    && apt-get purge -y --auto-remove xz-utils \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy the s6-overlay config
 COPY --chmod=755 ./docker/root/etc/s6-overlay /etc/s6-overlay
@@ -169,6 +182,13 @@ COPY --from=base --chown=node:node /app/apps/web/.next/static ./apps/web/.next/s
 # Prepare the workers app
 ######################
 COPY --from=base /prod/workers /app/apps/workers
+
+# Last, so its per-build value cannot reach the cache key of any RUN above it.
+# ENV alone adds no layer content, so a version bump now changes only image
+# metadata rather than re-digesting the runtime dependencies. See the note at
+# the top of this stage.
+ARG SERVER_VERSION=nightly
+ENV SERVER_VERSION=${SERVER_VERSION}
 
 ENTRYPOINT ["/init"]
 
