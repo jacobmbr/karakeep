@@ -429,8 +429,6 @@ function GridView({
   );
 }
 
-const MAX_COMPACT_TITLE_CHARS = 500;
-
 function CompactView({
   bookmark,
   title,
@@ -447,16 +445,6 @@ function CompactView({
   const hiddenTagCount = showTags
     ? bookmark.tags.length - visibleTags.length
     : 0;
-
-  // The title wraps in full rather than being clipped: at narrow widths the
-  // title track measures ~166px while a typical article headline needs ~375px,
-  // so any fixed line count clipped most of them. The cap is only a guard
-  // against a pathological title turning one row into a page of text.
-  const fullTitle = title ?? "Untitled";
-  const displayTitle =
-    fullTitle.length > MAX_COMPACT_TITLE_CHARS
-      ? `${fullTitle.slice(0, MAX_COMPACT_TITLE_CHARS).trimEnd()}…`
-      : fullTitle;
 
   return (
     // Two stacked lines rather than one row of columns: the title gets the
@@ -497,10 +485,17 @@ function CompactView({
         )}
 
         {showTitle && (
-          // break-words keeps an unbroken URL-ish title from pushing the row
-          // wider than its container.
-          <span className="min-w-0 break-words text-[13px] font-medium leading-[17px] tracking-[-0.006em] text-foreground">
-            {displayTitle}
+          // The title wraps in full rather than being clipped: at narrow widths
+          // it used to get ~166px against the ~375px a normal headline needs.
+          //
+          // The 10-line ceiling is only a guard against a pathological title
+          // turning one row into a page. It is done in CSS rather than by
+          // slicing the string because `title` is a ReactNode: link bookmarks
+          // pass an element (LinkCard's <LinkTitle>, which wraps the text in a
+          // <Link>), so a character cap could not reach the most common case.
+          // break-words keeps an unbroken URL-ish title inside the row.
+          <span className="line-clamp-[10] min-w-0 break-words text-[13px] font-medium leading-[17px] tracking-[-0.006em] text-foreground">
+            {title ?? "Untitled"}
           </span>
         )}
       </div>
